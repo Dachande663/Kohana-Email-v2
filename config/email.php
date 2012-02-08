@@ -1,6 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 return array(
-	
+
+    'charset' => 'utf-8',
 	'default' => array(
 		'transport' => 'mail',
 	),
