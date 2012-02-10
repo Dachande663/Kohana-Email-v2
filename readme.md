@@ -1,13 +1,23 @@
 Kohana Email v2
 ===============
 
-Kohana Email provides a standardised email interface for sending emails in the Kohana 3.2+ framework. It also provides a Spam Assassin score based on the excellent SpamChecker provided by Postmark (available to non-customers as well). This module does not used switfmailer out of personal distaste.
+Kohana Email provides a standardized email interface for sending emails (including attachments) in the Kohana 3.2+ framework. It also provides a Spam Assassin score based on the excellent SpamChecker provided by Postmark (available to non-customers as well). This module does not use switfmailer out of personal distaste.
+
+
+Features
+--------
+
+* Build emails using the common Kohana object format
+* Support for HTML and/or plain text emails
+* Support for attachments (thanks Josip)
+* Support for multiple transports
+* Does not require swiftmailer
 
 
 Current Transports
 ------------------
 
-* mail()
+* PHP mail()
 * Postmark (http://postmarkapp.com/)
 
 Additional transports can be added by simply making a new file in /classes/email and extending Email_Transport.
@@ -33,7 +43,8 @@ $email = Email::compose('my_config_group')
     ->reply('reply@mysite.com')
     ->subject('Welcome to My Site')
     ->body('Plain text welcome message')
-    ->body(View::factory('emails/welcome'), 'html');
+    ->body(View::factory('emails/welcome'), 'html')
+    ->attachment('files/report.pdf');
 
 try {
     $email->send();
@@ -54,16 +65,21 @@ Methods
 * subject('My Subject Line')
 * body('My body'[, type = 'html'])
 * header('Message-ID', '<my.message@id.com>') *
+* attachment('file/path.pdf')
 * send()
 * spam_score([verbose = false])
 
-\* Can be called multiple times
+**Notes**
 
-NB: email addresses can be in the form 'username@domain.com' OR array('Proper Name', 'username@domain.com') and will be expanded to be "Proper Name <username@domain.com>".
+\* This method can be called multiple times.
 
+Email addresses can be in the form 'username@domain.com' or array('Proper Name', 'username@domain.com') and will be expanded to be "Proper Name <username@domain.com>".
+
+If a file attachment path does not begin with a slash, the Kohana DOCROOT is automatically prepended.
 
 Thanks
 ------
 
-* http://kohanaframework.org/
-* http://postmarkapp.com
+* Kohana (http://kohanaframework.org/)
+* Postmark (http://postmarkapp.com)
+* Josip Lazic (http://lazic.info/josip/)
