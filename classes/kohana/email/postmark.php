@@ -36,21 +36,33 @@ class Kohana_Email_Postmark extends Email_Transport {
 		);
 
 		$json = array(
-			'From' => $this->from(),
-			'To' => $this->to(),
-			'Cc' => $this->cc(),
-			'Bcc' => $this->bcc(),
-			'ReplyTo' => $this->reply(),
-			'Subject' => $this->subject(),
-			'HtmlBody' => Arr::get($body, 'html'),
-			'TextBody' => Arr::get($body, 'text'),
-			'Headers' => array(),
+			'From'        => $this->from(),
+			'To'          => $this->to(),
+			'Cc'          => $this->cc(),
+			'Bcc'         => $this->bcc(),
+			'ReplyTo'     => $this->reply(),
+			'Subject'     => $this->subject(),
+			'HtmlBody'    => Arr::get($body, 'html'),
+			'TextBody'    => Arr::get($body, 'text'),
+			'Headers'     => array(),
+			'Attachments' => array(),
 		);
 
 		$ignore_headers = array('From', 'To', 'Cc', 'Bcc', 'Reply-To', 'Subject', 'Content-Type', 'Date');
 		$message_headers = $this->generate_headers(true, $ignore_headers);
 		foreach($message_headers as $field => $value) {
 			$json['Headers'][] = array('Name' => $field, 'Value' => $value);
+		}
+
+		$attachments = $this->generate_attachments();
+		if($attachments) {
+			foreach($attachments as $attachment) {
+				$json['Attachments'][] = array(
+					'Name' => $attachment['filename'],
+					'ContentType' => $attachment['filetype'],
+					'Content' => $attachment['content'],
+				);
+			}
 		}
 
 		$json = json_encode(array_filter($json));

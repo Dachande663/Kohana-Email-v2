@@ -28,8 +28,8 @@ abstract class Kohana_Email_Transport {
 	protected $to = array();
 	protected $cc = array();
 	protected $bcc = array();
-    protected $attachment = array();
-    protected $multipart = false;
+	protected $attachments = array();
+
 
 	/**
 	 * @var array Header properties
@@ -231,20 +231,22 @@ abstract class Kohana_Email_Transport {
 		return $this->mime_boundary;
 	} // end func: mime_boundary
 
-    /**
-     * Add attachment to email message
-     *
-     * @param string filepath
-     * @return self
-     **/
-    public function attachment ($attachment)
-    {
-        $attachment = DOCROOT."/".$attachment;
-        if (file_exists($attachment)) {
-            $this->attachment[] = $attachment;
-        }
-        return $this;
-    }
+
+
+	/**
+	 * Add attachment to email message
+	 *
+	 * @param string filepath
+	 * @return self
+	 * @author svakak
+	 **/
+	public function attachment($attachment) {
+		if(substr($attachment, 0, 1) != '/') $attachment = DOCROOT.DIRECTORY_SEPARATOR.$attachment;
+		if(is_file($attachment)) $this->attachments[] = $attachment;
+		return $this;
+	} // end func: attachment
+
+
 
 	/**
 	 * Return full email headers
@@ -266,25 +268,22 @@ abstract class Kohana_Email_Transport {
 		if(!isset($headers['X-Mailer'])) $headers['X-Mailer'] = $this->transport;
 		if(!isset($headers['Subject'])) $headers['Subject'] = $this->subject();
 
-		if(isset($this->body['html'])) {
-			if(isset($this->body['text'])) {
-				$headers['MIME-Version'] = '1.0';
-				$headers['Content-Type'] = 'multipart/alternative; boundary="'.$this->mime_boundary().'"';
-			} else {
-				$headers['Content-Type'] = 'text/html';
-			}
+		$has_text = isset($this->body['text']);
+		$has_html = isset($this->body['html']);
+		$has_attachments = !empty($this->attachments);
+
+		if($has_attachments) {
+			$headers['MIME-Version'] = '1.0';
+			$headers['Content-Type'] = 'multipart/alternative; boundary="'.$this->mime_boundary().'"';
+		} elseif($has_text and $has_html) {
+			$headers['MIME-Version'] = '1.0';
+			$headers['Content-Type'] = 'multipart/mixed; boundary="'.$this->mime_boundary().'"';
+		} elseif($has_html) {
+			$headers['Content-Type'] = 'text/html';
 		}
 
-        //If attachment is present, headers must be multipart/altenative.
-        if ($this->attachment) {
-            $headers['MIME-Version'] = '1.0';
-            $headers['Content-Type'] = 'multipart/alternative; boundary="'.$this->mime_boundary().'"';
-        }
-
 		$headers = array_filter($headers);
-
 		if($ignore_headers) foreach($ignore_headers as $ignore) unset($headers[$ignore]);
-
 		if($return_as_array == true) return $headers;
 
 		$output = array();
@@ -301,63 +300,89 @@ abstract class Kohana_Email_Transport {
 	 * @param bool If true, headers are included in return
 	 * @return string
 	 **/
-    public function generate_body($include_headers = false) {
+	public function generate_body($include_headers = false) {
 
-        $body_text = (isset($this->body['text']) and !empty($this->body['text'])) ? $this->body['text'] : false;
-        $body_html = (isset($this->body['html']) and !empty($this->body['html'])) ? $this->body['html'] : false;
+		$config      = Kohana::$config->load('email');
+		$output      = '';
+		$charset     = $config->charset;
+		$boundary    = $this->mime_boundary();
+		$eol         = $config->eol;
+		$body_text   = (isset($this->body['text']) and !empty($this->body['text'])) ? $this->body['text'] : false;
+		$body_html   = (isset($this->body['html']) and !empty($this->body['html'])) ? $this->body['html'] : false;
+		$attachments = $this->generate_attachments();
 
-        $config = Kohana::$config->load('email');
-        $output = null;
-        $attachments = null;
-        $charset = $config->charset;
-        $eol = "\n"; //Maybe put this in config file, but how?
-        $boundary = $this->mime_boundary();
 
-        //Cycle trough attachments and add them to var as base64 encoded string
-        if (isset($this->attachment))
-        {
-            foreach($this->attachment as $attachment)
-            {
-                $filename = basename($attachment);
-                $filetype = mime_content_type($attachment);
-                $content = chunk_split(base64_encode(file_get_contents($attachment)));
-                $attachments .= $eol . "--".$boundary.$eol;
-                $attachments .= "Content-Type: $filetype; name=\"$filename\"" . $eol;
-                $attachments .= "Content-Transfer-Encoding: base64" . $eol;
-                $attachments .= "Content-Disposition: attachment; filename=\"$filename\"" . $eol . $eol;
-                $attachments .= $content.$eol;
-            }
-        }
+		# Plain text
+		if($body_text) {
+			if($body_html or $attachments) {
+				$output .= "--$boundary".$eol;
+				$output .= "Content-Type: text/plain; charset=$charset".$eol;
+				$output .= "Content-Transfer-Encoding: 7bit".$eol;
+			}
+			$output .= $eol.$body_text.$eol;
+		}
 
-        //Check if email should be multipart type
-        if (($body_text AND $body_html) OR $attachments) {
-            $this->multipart = true;
-        }
 
-        if ($body_text) {
-            if ($this->multipart) { //Append multipart 'headers' if needed
-                $output .= "--$boundary".$eol;
-                $output .= "Content-Type: text/plain; charset=$charset".$eol;
-                $output .= "Content-Transfer-Encoding: 7bit".$eol;
-            }
-            $output .= $eol.$body_text.$eol;
-        }
+		# HTML
+		if($body_html) {
+			if($body_text or $attachments) {
+				$output .= "--$boundary".$eol;
+				$output .= "Content-Type: text/html; charset=$charset".$eol;
+				$output .= "Content-Transfer-Encoding: 7bit".$eol;
+			}
+			$output .= $eol.$body_html.$eol;
+		}
 
-        if ($body_html) {
-            if ($this->multipart) { //Append multipart 'headers' if needed
-                $output .= "--$boundary".$eol;
-                $output .= "Content-Type: text/html; charset=$charset".$eol;
-                $output .= "Content-Transfer-Encoding: 7bit".$eol;
-            }
-            $output .= $eol.$body_html.$eol;
-        }
 
-        //Add attachments to message
-        if ($attachments) { $output .= $attachments; }
+		# Attachments
+		if($attachments) {
+			foreach($attachments as $attachment) {
+				$output .= $eol . "--".$boundary.$eol;
+				$output .= "Content-Type: {$attachment['filetype']}; name=\"{$attachment['filename']}\"" . $eol;
+				$output .= "Content-Transfer-Encoding: base64" . $eol;
+				$output .= "Content-Disposition: attachment; filename=\"{$attachment['filename']}\"" . $eol . $eol;
+				$output .= $attachment['content'].$eol;
+			}
+		}
 
-        if($include_headers) $output = $this->generate_headers() . "\r\n\r\n" . $output;
-        return $output;
-    } // end func: generate_body
+
+		# Output
+		if($include_headers) $output = $this->generate_headers() . "\r\n\r\n" . $output;
+		return $output;
+	} // end func: generate_body
+
+
+
+	/**
+	 * Returns any attachments added to email
+	 *
+	 * @return array
+	 * @author Luke Lanchester
+	 **/
+	public function generate_attachments() {
+		
+		if(empty($this->attachments)) return null;
+
+		$attachments = array();
+
+		foreach($this->attachments as $attachment) {
+			
+			$filename = basename($attachment);
+			$filetype = mime_content_type($attachment);
+			$content = chunk_split(base64_encode(file_get_contents($attachment)));
+
+			$attachments[] = array(
+				'filename' => $filename,
+				'filetype' => $filetype,
+				'content'  => $content,
+			);
+
+		}
+		
+		return $attachments;
+
+	} // end func: generate_attachments
+
 
 
 	/**
