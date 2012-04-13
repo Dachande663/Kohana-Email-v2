@@ -227,7 +227,7 @@ abstract class Kohana_Email_Transport {
 	 * @return string
 	 **/
 	protected function mime_boundary() {
-		if($this->mime_boundary === null) $this->mime_boundary = '==MULTIPART_BOUNDARY_'.md5('kohana-email-transport'.time());
+		if($this->mime_boundary === null) $this->mime_boundary = 'mimepart_'.md5('kohana-email-transport'.time());
 		return $this->mime_boundary;
 	} // end func: mime_boundary
 
@@ -272,12 +272,9 @@ abstract class Kohana_Email_Transport {
 		$has_html = isset($this->body['html']);
 		$has_attachments = !empty($this->attachments);
 
-		if($has_attachments) {
+		if($has_attachments or ($has_text and $has_html)) {
 			$headers['MIME-Version'] = '1.0';
-			$headers['Content-Type'] = 'multipart/alternative; boundary="'.$this->mime_boundary().'"';
-		} elseif($has_text and $has_html) {
-			$headers['MIME-Version'] = '1.0';
-			$headers['Content-Type'] = 'multipart/mixed; boundary="'.$this->mime_boundary().'"';
+			$headers['Content-Type'] = 'multipart/alternative; boundary='.$this->mime_boundary();
 		} elseif($has_html) {
 			$headers['Content-Type'] = 'text/html';
 		}
@@ -315,22 +312,24 @@ abstract class Kohana_Email_Transport {
 		# Plain text
 		if($body_text) {
 			if($body_html or $attachments) {
-				$output .= "--$boundary".$eol;
-				$output .= "Content-Type: text/plain; charset=$charset".$eol;
-				$output .= "Content-Transfer-Encoding: 7bit".$eol;
+				$output .= $eol . "--".$boundary.$eol;
+				$output .= "Content-Type: text/plain; charset=utf-8".$eol;
+				$output .= "Content-Transfer-Encoding: Quoted-printable".$eol;
+				$output .= "Content-Disposition: inline".$eol;
 			}
-			$output .= $eol.$body_text.$eol;
+			$output .= $eol.$body_text.$eol.$eol;
 		}
 
 
 		# HTML
 		if($body_html) {
 			if($body_text or $attachments) {
-				$output .= "--$boundary".$eol;
-				$output .= "Content-Type: text/html; charset=$charset".$eol;
-				$output .= "Content-Transfer-Encoding: 7bit".$eol;
+				$output .= $eol . "--".$boundary.$eol;
+				$output .= "Content-Type: text/html; charset=utf-8".$eol;
+				$output .= "Content-Transfer-Encoding: Quoted-printable".$eol;
+				$output .= "Content-Disposition: inline".$eol;
 			}
-			$output .= $eol.$body_html.$eol;
+			$output .= $eol.$body_html.$eol.$eol;
 		}
 
 
@@ -344,6 +343,8 @@ abstract class Kohana_Email_Transport {
 				$output .= $attachment['content'].$eol;
 			}
 		}
+
+		#$output .= $eol."--$boundary".$eol;
 
 
 		# Output
