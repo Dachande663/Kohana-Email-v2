@@ -1,9 +1,11 @@
 <?php defined('SYSPATH') or die('No direct script access.');
-
 /**
- * Email Postmark (postmarkapp.com)
+ * Email Postmark.app Wrapper
  *
- * @package default
+ * @package    Email
+ * @author     Luke Lanchester
+ * @copyright  (c) 2012 Luke Lanchester
+ * @see https://github.com/Dachande663/Kohana-Email-v2
  */
 class Kohana_Email_Postmark extends Email_Transport {
 	
