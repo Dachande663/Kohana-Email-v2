@@ -1,7 +1,7 @@
 Kohana Email v2
 ===============
 
-Kohana Email provides a standardized email interface for sending emails (including attachments) in the Kohana 3.2+ framework. It also provides a Spam Assassin score based on the excellent SpamChecker provided by Postmark (available to non-customers as well). This module does not use switfmailer out of personal distaste.
+Kohana Email provides a standardized email interface for sending emails (including attachments) in the Kohana 3.3+ framework. It also provides a Spam Assassin score based on the excellent SpamChecker provided by Postmark (available to non-customers as well). This module does not use switfmailer out of personal distaste.
 
 
 Features
